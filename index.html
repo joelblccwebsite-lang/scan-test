@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CORS 測試</title>
+<style>
+body{background:#111;color:#eee;font:16px/1.5 sans-serif;padding:14px;margin:0}
+button{font-size:18px;padding:12px 16px;margin:6px 6px 6px 0;border:0;border-radius:8px;background:#2a6;color:#fff}
+.box{margin:10px 0;padding:10px;border-radius:8px;background:#222;white-space:pre-wrap;word-break:break-all;font-size:14px}
+.ok{border-left:6px solid #2c6}.ng{border-left:6px solid #e44}
+</style></head><body>
+<h2>第1關：CORS 測試</h2>
+<div id="env" class="box"></div>
+<button onclick="run('GET')">測試 GET</button>
+<button onclick="run('POST')">測試 POST</button>
+<button onclick="run('BOTH')">兩個都測</button>
+<div id="out"></div>
+<script>
+var URL_='https://script.google.com/macros/s/AKfycbyUaZZlHtGUdCBt7r1N4eU_sgnIRSE5cDBocpJF9GPLhgQo5TsOzk_j-qOmn-D6te7_7A/exec';
+document.getElementById('env').textContent='瀏覽器：'+navigator.userAgent+'\n頁面來源：'+location.origin;
+function show(t,ok){var d=document.createElement('div');d.className='box '+(ok?'ok':'ng');d.textContent=t;document.getElementById('out').prepend(d);}
+async function one(m){
+  var t0=Date.now();
+  try{
+    var opt=(m==='GET')?{method:'GET',redirect:'follow'}
+      :{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({hello:'世界',n:1})};
+    var r=await fetch(URL_,opt);
+    var txt=await r.text();
+    var j=JSON.parse(txt);
+    show('✅ '+m+' 成功｜'+(Date.now()-t0)+' ms｜HTTP '+r.status+'\n'+txt,j.ok===true);
+  }catch(e){
+    show('❌ '+m+' 失敗｜'+(Date.now()-t0)+' ms\n'+e.name+': '+e.message,false);
+  }
+}
+async function run(m){ if(m==='BOTH'){await one('GET');await one('POST');} else await one(m); }
+</script></body></html>
