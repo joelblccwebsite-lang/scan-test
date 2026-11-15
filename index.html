@@ -8,10 +8,11 @@
 <title>報到領餐｜連續掃描</title>
 <!--
   ╔══════════════════════════════════════════════════════════════╗
-  ║ 盧安格特會｜外部連續掃描頁 v7.0.0                              ║
+  ║ 盧安格特會｜外部連續掃描頁 v7.1.0                              ║
   ║ 放在 GitHub Pages，只有程式，不含任何名單。                      ║
   ║ 名單是登入後才從 Apps Script 下載，存在手機瀏覽器裡，登出就清掉。  ║
   ║ 同一層資料夾要放 html5-qrcode.min.js（舊 iPhone 的備援辨識）。    ║
+  ║ v7.1：結果只佔上方、鏡頭常駐下方｜數字加大｜數字不倒退｜iPhone 加速 ║
   ╚══════════════════════════════════════════════════════════════╝
 -->
 <style>
@@ -34,29 +35,30 @@ button,input,select{font-family:inherit}
 .btn.sec{background:#1B2230;color:#D5DCE6;border:1.5px solid #2A3340;font-weight:600}
 .err{color:#FF8A80;font-size:14px;min-height:20px;margin-top:8px}
 
-/* ---------- 狀態條 ---------- */
+/* ---------- 狀態條（v7.1：數字加大） ---------- */
 #bar{position:fixed;top:0;left:0;right:0;z-index:30;background:#171C24;border-bottom:1px solid #2A3340;
      padding:calc(6px + env(safe-area-inset-top)) 10px 6px}
-#b1{display:flex;align-items:baseline;gap:8px}
-#bigN{font-size:34px;font-weight:900;line-height:1;letter-spacing:-1px}
-#bigL{font-size:13px;color:#A8B0BD}
-#bigT{margin-left:auto;font-size:13px;color:#D5DCE6;text-align:right;max-width:46%}
-#b2{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px;font-size:12px;color:#8B94A3}
-#b2 b{color:#D5DCE6;font-weight:700}
+#b1{display:flex;align-items:flex-end;gap:16px}
+#bigN{font-size:48px;font-weight:900;line-height:.95;letter-spacing:-1px}
+#bigL,.st2 .l{font-size:12px;color:#A8B0BD;margin-top:3px;white-space:nowrap}
+#s2{display:flex;gap:16px;align-items:flex-end}
+.st2 .n{font-size:30px;font-weight:900;line-height:1}
+.st2 .n small{font-size:13px;color:#8B94A3;font-weight:700;margin-left:1px}
+#bigT{margin-left:auto;font-size:12px;line-height:1.3;color:#D5DCE6;text-align:right;align-self:center;max-width:34%}
+#b2{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:6px;font-size:13px;color:#8B94A3}
+#b2 b{color:#E6EBF2;font-weight:800;font-size:14px}
 #b3{display:flex;align-items:center;gap:8px;margin-top:5px;font-size:12px;color:#8B94A3}
 #dot{width:9px;height:9px;border-radius:50%;background:#3BA46A;flex:none}
 #dot.busy{background:#C9A227}
 #dot.bad{background:#C9483E}
 #q.warn{color:#FFC14D;font-weight:800}
 
-/* ---------- 鏡頭 ---------- */
+/* ---------- 鏡頭（常駐，結果只蓋上方一塊） ---------- */
 #camWrap{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:10}
 #vid{width:100%;height:100%;object-fit:cover;display:block}
 #reader{width:100%;height:100%}
 #reader video{width:100%!important;height:100%!important;object-fit:cover!important}
 #box{position:fixed;z-index:12;border:3px solid rgba(255,255,255,.85);border-radius:14px;pointer-events:none}
-#hintC{position:fixed;z-index:12;left:0;right:0;text-align:center;font-size:13px;color:#fff;
-     text-shadow:0 1px 3px #000;pointer-events:none}
 
 /* ---------- 工具列 ---------- */
 #tools{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#171C24;border-top:1px solid #2A3340;
@@ -66,17 +68,18 @@ button,input,select{font-family:inherit}
 #tools button.on{background:#C9A227;color:#1A1405;border-color:#C9A227}
 #tools button.warn{background:#7A2A22;color:#fff;border-color:#9B3B30}
 
-/* ---------- 結果（整面變色） ---------- */
+/* ---------- 結果（只佔上方一塊；平常是灰色「等待掃描」） ---------- */
 #res{position:fixed;z-index:25;left:0;right:0;display:flex;flex-direction:column;
-     align-items:center;justify-content:center;text-align:center;padding:14px}
+     align-items:center;justify-content:center;text-align:center;padding:10px 14px;overflow:hidden}
+#res.idle{background:#10151C;border-bottom:1px solid #2A3340}
 #res.ok{background:#0B7A3B}
 #res.warn{background:#8A5A00}
 #res.err{background:#9B2C22}
 #res.info{background:#243040}
-#resT{font-size:30px;font-weight:900;letter-spacing:1px;line-height:1.15}
-#resN{font-size:23px;font-weight:800;margin-top:7px}
-#resM{font-size:15px;margin-top:6px;opacity:.95;line-height:1.4}
-#resX{font-size:12px;margin-top:9px;opacity:.85}
+#resT{font-size:28px;font-weight:900;letter-spacing:1px;line-height:1.15}
+#resN{font-size:22px;font-weight:800;margin-top:5px}
+#resM{font-size:14px;margin-top:5px;opacity:.95;line-height:1.35}
+#resX{font-size:12px;margin-top:6px;opacity:.85}
 
 /* ---------- 浮層（手動輸入、警示） ---------- */
 #ov{position:fixed;top:0;left:0;right:0;bottom:0;z-index:40;background:rgba(5,8,12,.94);overflow-y:auto;padding:16px}
@@ -120,14 +123,15 @@ button,input,select{font-family:inherit}
   <button class="btn" id="lgGo">登入並下載名單</button>
   <button class="btn sec" id="lgPing">只測連線（不用密碼）</button>
   <div class="err" id="lgErr"></div>
-  <p style="margin-top:16px;font-size:12px;color:#6F7887">v<span class="ver"></span>｜請用 Chrome（Android）或 Safari（iPhone）開啟；若顯示「無法要求權限」，請先關掉手機上浮在畫面的 App（濾藍光、錄影、小白點、泡泡）。</p>
+  <p style="margin-top:16px;font-size:12px;color:#6F7887">v<span class="ver"></span>｜請用 Chrome（Android）或 Safari／Chrome（iPhone）開啟；若顯示「無法要求權限」，請先關掉手機上浮在畫面的 App（濾藍光、錄影、小白點、泡泡）。</p>
 </div>
 
 <!-- ===================== 3. 主畫面 ===================== -->
 <div id="main" class="hide">
   <div id="bar">
     <div id="b1">
-      <div id="bigN">—</div><div id="bigL">剩餘份數</div>
+      <div><div id="bigN">—</div><div id="bigL">剩餘份數</div></div>
+      <div id="s2"></div>
       <div id="bigT">—</div>
     </div>
     <div id="b2"></div>
@@ -143,9 +147,8 @@ button,input,select{font-family:inherit}
     <div id="reader" class="hide"></div>
   </div>
   <div id="box" class="hide"></div>
-  <div id="hintC" class="hide">把名牌的 QR 放進框裡</div>
 
-  <div id="res" class="hide"></div>
+  <div id="res" class="idle"></div>
 
   <div id="tools">
     <button id="tTorch">🔅 手電筒</button>
@@ -168,7 +171,7 @@ button,input,select{font-family:inherit}
 /* ============================================================
    設定
    ============================================================ */
-var VER = '7.0.0';
+var VER = '7.1.0';
 /* 想把網址寫死在程式裡就填這一行（留白＝第一次用時手動輸入，之後記住） */
 var EXEC_URL = '';
 
@@ -177,8 +180,11 @@ var SYNC_N    = 3;      // 累積幾筆就立刻送
 var IDLE_MS   = 20000;  // 閒著時幾毫秒更新一次數字
 var DUP_MS    = 2000;   // 同一個碼幾毫秒內重複掃到就忽略
 var OK_MS     = 1500;   // 綠燈結果幾毫秒後自動消失
-var SCAN_MS   = 120;    // 掃描間隔
+var SCAN_MS   = 120;    // 掃描間隔（Android 內建辨識）
 var FETCH_MS  = 12000;  // 單次連線逾時
+var RES_FRAC  = 0.34;   // 結果區佔「狀態條到工具列之間」的比例（其餘是鏡頭）
+var LIB_FPS   = 15;     // iPhone（函式庫辨識）每秒嘗試次數
+var LIB_RES   = [640, 480];  // iPhone 鏡頭解析度（越小越快；若變得很難對焦或掃不到，改回 [1280, 720]）
 
 /* ============================================================
    小工具
@@ -213,6 +219,7 @@ var QUEUE=[], SEQ=0, SKEW=0, SN=0;
 var LAST=null;                            // 上一筆成功的動作（給「取消上一筆」用）
 var lastCode='', lastAt=0, syncing=false, resTimer=null, started=false;
 var WARN=[];                              // 伺服器事後否決的警示
+var L={T:0,H:0,W:0,resH:0,vh2:0,side:0};  // 版面尺寸（layout 算出來）
 
 /* ============================================================
    連線
@@ -280,6 +287,7 @@ function rosterApply(d){
            rosterVer:d.rosterVer, badge:d.badge, event:d.event };
   SEQ = d.seq||0; LS('seq', String(SEQ));
   CTX = d.ctx; STATS = d.stats||{day:null,meal:null};
+  pendRoster(); pendStats();          // v7.1：還沒送出的筆數要再套回去
   rosterSaveNow();
 }
 function download(cb){
@@ -366,7 +374,7 @@ function hit(raw){
     return paint('warn','已經領過，不要再發', p.n, '這一餐（'+m.name+'）已經領走了', true);
 
   p.g |= mb; if(autoIn) p.i |= db2; rosterSave();
-  queue({ t:'meal', c:code, i:m.id }, 'ok');
+  queue({ t:'meal', c:code, i:m.id, ai:(autoIn?1:0) }, 'ok');
   bumpLocal(-1, autoIn);
   if(autoIn) bumpDay();
   return paint('ok','可以發餐', p.n, m.name+'（'+m.food+'）'+(autoIn?'｜已順便幫他報到':'')+zz, false);
@@ -392,11 +400,43 @@ function qLoad(){
   SEQ = Number(LS('seq')||0); SN = Number(LS('sn')||0);
 }
 
+/* v7.1｜修「數字倒退跳動」：
+   伺服器回來的統計只包含「它已經記好的」，手機裡還沒送出的筆數要再加回去，畫面才不會往回跳。 */
+function pendStats(){
+  var m = STATS && STATS.meal, d = STATS && STATS.day;
+  QUEUE.forEach(function(e){
+    if(e.t==='meal'){
+      if(m && typeof m.left==='number'){ m.left--; m.got++; if(!e.ai && m.waiting>0) m.waiting--; }
+      if(e.ai && d && typeof d.checked==='number') d.checked++;
+    } else if(e.t==='in'){
+      if(d && typeof d.checked==='number') d.checked++;
+    } else if(e.t==='extra'){
+      if(m && typeof m.left==='number'){ m.extra++; m.left--; }
+    } else if(e.t==='undo'){
+      if(e.ut==='meal' && m && typeof m.left==='number'){ m.left++; m.got--; }
+      else if(e.ut==='in' && d && typeof d.checked==='number'){ d.checked--; }
+      else if(e.ut==='extra' && m && typeof m.left==='number'){ m.extra--; m.left++; }
+    }
+  });
+}
+/* 重新下載名單時，還沒送出的「已領／已報到」也要記回名單，不然會被當成沒領過 */
+function pendRoster(){
+  QUEUE.forEach(function(e){
+    var p = ROSTER[e.c]; if(!p) return;
+    if(e.t==='meal'){ var mi=mealIdx(e.i); if(mi>-1) p.g |= (1<<mi); if(e.ai){ var mm=mealOf(e.i); var d1=mm?dayIdx(mm.day):-1; if(d1>-1) p.i |= (1<<d1); } }
+    else if(e.t==='in'){ var di=dayIdx(e.i); if(di>-1) p.i |= (1<<di); }
+    else if(e.t==='undo' && e.ut==='meal'){ var m2=mealIdx(e.i); if(m2>-1) p.g &= ~(1<<m2); }
+    else if(e.t==='undo' && e.ut==='in'){ var d2=dayIdx(e.i); if(d2>-1) p.i &= ~(1<<d2); }
+  });
+}
+/* 送給伺服器的資料不帶本機專用欄位（ai） */
+function wire(e){ var o={}; for(var k in e){ if(k!=='ai') o[k]=e[k]; } return o; }
+
 function sync(){
   if(syncing || !KEY || !EP) return;
   syncing = true; dot('busy','同步中');
   var sending = QUEUE.slice(0, 40);
-  api('sync', { seq:SEQ, ev:sending }).then(function(d){
+  api('sync', { seq:SEQ, ev:sending.map(wire) }).then(function(d){
     syncing = false;
     if(d.err==='auth'){ dot('bad','密碼已更換'); return logout(true); }
     if(!d || (!d.ok && !d.busy)){ dot('bad', d&&d.msg?('伺服器：'+d.msg):'同步失敗'); return; }
@@ -413,7 +453,7 @@ function sync(){
     if(d.seq) SEQ = d.seq, LS('seq', String(SEQ));
     if(d.chg) applyChg(d.chg);
     if(d.ctx) CTX = d.ctx;
-    if(d.stats) STATS = d.stats;
+    if(d.stats){ STATS = d.stats; pendStats(); }   // v7.1：把還沒送出的筆數加回去
     if(d.resync || (d.rosterVer && META && d.rosterVer !== META.rosterVer)) refresh(d.resync);
     dot(QUEUE.length?'busy':'ok', QUEUE.length?('還有 '+QUEUE.length+' 筆要送'):'已同步');
     paintBar();
@@ -508,60 +548,75 @@ function paintBar(){
     txt($('bigL'), '剩餘份數');
     txt($('bigT'), s.name+'\n'+s.food);
     $('bigT').style.whiteSpace='pre-line';
+    $('s2').innerHTML =
+      '<div class="st2"><div class="n">'+num(s.got)+'</div><div class="l">已領</div></div>'+
+      (STATS.day?('<div class="st2"><div class="n">'+num(STATS.day.checked)+'<small>/'+num(STATS.day.total)+'</small></div><div class="l">今日報到</div></div>'):'');
     $('b2').innerHTML =
       '<span>報名 <b>'+num(s.reg)+'</b></span>'+
       '<span>訂購 <b>'+num(s.ordered)+'</b></span>'+
-      '<span>已領 <b>'+num(s.got)+'</b></span>'+
       '<span>加發 <b>'+num(s.extra)+'</b></span>'+
-      '<span>報到未領 <b>'+num(s.waiting)+'</b></span>'+
-      (STATS.day?('<span>今日報到 <b>'+num(STATS.day.checked)+'</b>/'+num(STATS.day.total)+'</span>'):'');
+      '<span>報到未領 <b>'+num(s.waiting)+'</b></span>';
     show($('tExtra'), true);
   } else if(mo.m==='in' && STATS.day){
     var d2 = STATS.day;
     txt($('bigN'), num(d2.checked));
     txt($('bigL'), '／'+num(d2.total)+' 已報到');
     txt($('bigT'), '報到｜'+d2.label);
+    $('s2').innerHTML = '';
     $('b2').innerHTML = '<span>現在只記報到，不發餐</span>';
     show($('tExtra'), false);
   } else {
     txt($('bigN'), '—'); txt($('bigL'), mo.m==='none'?'今天不記錄':'讀取中');
     txt($('bigT'), CTX&&CTX.manualMode?('🔧 '+CTX.manualMode):'');
+    $('s2').innerHTML = '';
     $('b2').innerHTML = '';
     show($('tExtra'), false);
   }
   layout();
 }
-/* 結果：整面變色。綠色 1.5 秒自動消失；黃／紅要點一下（避免漏看） */
+
+/* 結果：只蓋上方一塊，鏡頭永遠看得到。綠色 1.5 秒回到「等待掃描」；
+   黃／紅會一直留著，直到掃下一位（自動換掉）或點一下。 */
+function idle(){
+  var r = $('res');
+  r.className = 'idle';
+  r.innerHTML = '<div id="resT" style="font-size:22px;color:#6F7887">等待掃描</div>'+
+                '<div id="resM" style="color:#6F7887">把名牌的 QR 放進下方框裡</div>';
+  show(r,true);
+}
 function paint(level, title, name, msg, sticky){
   var r = $('res');
   r.className = level;
   r.innerHTML = '<div id="resT">'+esc(title)+'</div>'+
     (name?'<div id="resN">'+esc(name)+'</div>':'')+
     (msg?'<div id="resM">'+esc(msg)+'</div>':'')+
-    '<div id="resX">'+(sticky?'點一下繼續':'')+'</div>';
+    '<div id="resX">'+(sticky?'掃下一位會自動換掉｜或點一下清除':'')+'</div>';
   show(r,true);
   if(resTimer) clearTimeout(resTimer);
-  if(!sticky) resTimer = setTimeout(function(){ show(r,false); }, OK_MS);
+  if(!sticky) resTimer = setTimeout(idle, OK_MS);
   beep(level==='ok'?'ok':level==='warn'?'warn':level==='info'?'warn':'err');
   buzz(level==='ok'?70:level==='warn'?[90,60,90]:[200,80,200]);
   layout();
 }
-$('res').addEventListener('click', function(){ show($('res'),false); });
+$('res').addEventListener('click', function(){ if(resTimer) clearTimeout(resTimer); idle(); });
 
-/* 版面：狀態條下方到工具列上方，中間是鏡頭；掃描框在中央 */
+/* 版面：狀態條下方到工具列上方＝鏡頭區；結果蓋在鏡頭區最上面 RES_FRAC；掃描框在剩下的鏡頭區中央 */
 function layout(){
   var top = $('bar').offsetHeight, bot = $('tools').offsetHeight;
-  var h = window.innerHeight - top - bot;
+  var W = window.innerWidth, H = window.innerHeight - top - bot;
+  if(H < 200) H = 200;
+  var resH = Math.max(150, Math.round(H*RES_FRAC));
+  var vh2 = H - resH;
+  var side = Math.round(Math.min(W, vh2) * 0.72);
+  L = { T:top, H:H, W:W, resH:resH, vh2:vh2, side:side };
   var cw = $('camWrap');
   cw.style.top = top+'px'; cw.style.bottom = bot+'px';
   var r = $('res');
-  r.style.top = top+'px'; r.style.bottom = bot+'px';
-  var side = Math.round(Math.min(window.innerWidth, h) * 0.62);
+  r.style.top = top+'px'; r.style.height = resH+'px';
   var b = $('box');
   b.style.width = side+'px'; b.style.height = side+'px';
-  b.style.left = Math.round((window.innerWidth-side)/2)+'px';
-  b.style.top  = Math.round(top + (h-side)/2)+'px';
-  $('hintC').style.top = Math.round(top + (h-side)/2 + side + 10)+'px';
+  b.style.left = Math.round((W-side)/2)+'px';
+  b.style.top  = Math.round(top + resH + (vh2-side)/2)+'px';
 }
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', function(){ setTimeout(layout,300); });
@@ -632,7 +687,7 @@ document.addEventListener('visibilitychange', function(){
 });
 
 /* ============================================================
-   鏡頭（A3：指定主鏡頭、固定解析度、只掃中央框）
+   鏡頭（A3：指定主鏡頭、固定解析度、只掃框內）
    ============================================================ */
 var CAM = { kind:'', track:null, stop:function(){}, torch:false, h5:null, timer:null, det:null };
 
@@ -663,6 +718,17 @@ function startCam(){
   }).catch(function(e){ camErr(e); });
 }
 
+/* 掃描框在鏡頭畫面裡對應的位置（影片是 cover 填滿鏡頭區，所以要換算） */
+function cropOf(vid){
+  var vw=vid.videoWidth, vh=vid.videoHeight; if(!vw||!vh||!L.W) return null;
+  var s  = Math.max(L.W/vw, L.H/vh);
+  var ox = (vw*s - L.W)/2, oy = (vh*s - L.H)/2;
+  var bx = (L.W - L.side)/2, by = L.resH + (L.vh2 - L.side)/2;
+  var sx = Math.max(0, (bx+ox)/s), sy = Math.max(0, (by+oy)/s);
+  var ss = Math.min(L.side/s, vw-sx, vh-sy);
+  return { x:Math.round(sx), y:Math.round(sy), s:Math.max(40, Math.round(ss)) };
+}
+
 /* 路線 1：瀏覽器內建 QR 偵測（Android Chrome 最省電、最快） */
 function startNative(devId){
   var v = { width:{ideal:1280}, height:{ideal:720}, frameRate:{ideal:24,max:30} };
@@ -673,16 +739,14 @@ function startNative(devId){
     CAM.stop = function(){ if(CAM.timer) clearTimeout(CAM.timer); st.getTracks().forEach(function(t){ t.stop(); }); };
     var vid = $('vid');
     vid.srcObject = st; show(vid,true); show($('reader'),false);
-    show($('box'),true); show($('hintC'),true);
+    show($('box'),true);
     CAM.det = new BarcodeDetector({ formats:['qr_code'] });
     var cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently:true });
     function loop(){
       CAM.timer = setTimeout(loop, SCAN_MS);
-      var vw=vid.videoWidth, vh=vid.videoHeight;
-      if(!vw||!vh) return;
-      var side = Math.round(Math.min(vw,vh)*0.62);
-      cv.width=side; cv.height=side;
-      try{ cx.drawImage(vid, Math.round((vw-side)/2), Math.round((vh-side)/2), side, side, 0, 0, side, side); }
+      var c = cropOf(vid); if(!c) return;
+      cv.width=c.s; cv.height=c.s;
+      try{ cx.drawImage(vid, c.x, c.y, c.s, c.s, 0, 0, c.s, c.s); }
       catch(e){ return; }
       CAM.det.detect(cv).then(function(list){
         if(list && list.length) hit(list[0].rawValue);
@@ -690,16 +754,19 @@ function startNative(devId){
     }
     vid.play().catch(function(){});
     loop();
+    idle();
     dot(QUEUE.length?'busy':'ok', '鏡頭已開（內建辨識）');
   });
 }
 
-/* 路線 2：函式庫（iPhone Safari 等沒有內建偵測的） */
+/* 路線 2：函式庫（iPhone 等沒有內建偵測的）
+   v7.1：解析度降到 640×480、掃描框縮小、每秒 15 次，反應會快一些（仍比 Android 慢） */
 function startLib(devId){
   if(window.__LIBFAIL || typeof Html5Qrcode==='undefined')
     throw new Error('辨識函式庫沒有載入：請確認 html5-qrcode.min.js 和這一頁放在同一個資料夾');
+  layout();
   show($('vid'),false); show($('reader'),true);
-  show($('box'),false); show($('hintC'),true);
+  show($('box'),false);
   var h = new Html5Qrcode('reader', {
     verbose:false,
     useBarCodeDetectorIfSupported:true,
@@ -708,11 +775,12 @@ function startLib(devId){
   CAM.kind='lib'; CAM.h5=h;
   CAM.stop = function(){ try{ h.stop(); }catch(e){} };
   var src = devId ? { deviceId:{ exact:devId } } : { facingMode:'environment' };
-  var side = Math.round(Math.min(window.innerWidth, window.innerHeight)*0.55);
-  return h.start(src, { fps:10, qrbox:{ width:side, height:side },
-                        videoConstraints: Object.assign({ width:{ideal:1280}, height:{ideal:720} }, src) },
+  /* 函式庫的掃描框固定在鏡頭區正中央，所以大小要讓它不被上方結果區蓋住 */
+  var side = Math.max(120, Math.min(Math.round(Math.min(L.W, L.H)*0.55), Math.floor(L.H - 2*L.resH)));
+  return h.start(src, { fps:LIB_FPS, qrbox:{ width:side, height:side }, disableFlip:true,
+                        videoConstraints: Object.assign({ width:{ideal:LIB_RES[0]}, height:{ideal:LIB_RES[1]} }, src) },
     function(t){ hit(t); }, function(){})
-    .then(function(){ dot(QUEUE.length?'busy':'ok','鏡頭已開（函式庫辨識）'); });
+    .then(function(){ idle(); dot(QUEUE.length?'busy':'ok','鏡頭已開（函式庫辨識）'); });
 }
 
 function camErr(e){
@@ -842,7 +910,7 @@ function logout(auto){
 function go(){
   started = true;
   show($('login'),false); show($('setup'),false); show($('main'),true);
-  audioOn(); wake(); paintBar(); layout();
+  audioOn(); wake(); idle(); paintBar(); layout();
   startCam();
   setInterval(function(){ if(QUEUE.length) sync(); }, SYNC_MS);
   setInterval(function(){ if(!QUEUE.length) sync(); }, IDLE_MS);
