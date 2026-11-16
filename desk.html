@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>服務台｜轉址中…</title>
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║ 盧安格特會｜服務台轉址頁 desk.html（A5）                        ║
+  ║ 放在 GitHub Pages，和 index.html 同一個資料夾。                  ║
+  ║ 作用：把 …/scan-test/desk.html 自動轉到 Apps Script 的服務台。    ║
+  ║ 網址怎麼來：                                                    ║
+  ║   ① 下面 EXEC_URL 直接填（最穩，建議填）                         ║
+  ║   ② 沒填的話，會用同一支手機在掃描頁設定過的網址（存在瀏覽器裡）    ║
+  ║   ③ 都沒有，就請使用者貼一次，之後記住                            ║
+  ║ ★ 這一頁不含任何名單，也不含控制台網址（控制台只存書籤）。         ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#F4F6F8;color:#111}
+body{font:18px/1.5 system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+     padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.card{max-width:480px;margin:0 auto;padding:26px 16px}
+h1{font-size:26px;font-weight:900;margin:6px 0 10px}
+p{font-size:17px;color:#333;margin:8px 0 14px}
+label{display:block;font-size:17px;font-weight:700;margin:14px 0 6px}
+input{width:100%;font-size:19px;padding:13px;border:2px solid #7A8494;border-radius:10px;background:#fff;color:#111}
+.btn{display:block;width:100%;margin-top:14px;padding:16px;border:none;border-radius:10px;
+     background:#1456B8;color:#fff;font-size:20px;font-weight:800;text-align:center;text-decoration:none}
+.btn.sec{background:#fff;color:#111;border:2px solid #7A8494;font-weight:700}
+.err{color:#B3261E;font-size:16px;font-weight:700;min-height:22px;margin-top:8px}
+.go{text-align:center;padding:60px 16px}
+.go b{display:block;font-size:24px;font-weight:900;margin-bottom:10px}
+.go a{color:#1456B8;font-size:17px}
+</style>
+</head>
+<body>
+
+<div id="go" class="go" style="display:none">
+  <b>🪪 正在開啟服務台…</b>
+  <p>如果畫面沒有自動跳轉，請點下面的連結。</p>
+  <a id="manual" href="#">手動開啟服務台</a>
+</div>
+
+<div id="setup" class="card" style="display:none">
+  <h1>🪪 服務台</h1>
+  <p>這台裝置還沒設定過 Apps Script 網址。<br>請貼上網頁應用程式網址（結尾是 <b>/exec</b>），設定一次就會記住。</p>
+  <label>Apps Script 網址</label>
+  <input id="ep" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/AKfy…/exec" autocomplete="off">
+  <button class="btn" id="save">儲存並開啟服務台</button>
+  <div class="err" id="err"></div>
+  <p style="margin-top:18px;font-size:15px;color:#444">網址可以在控制台「④ 各頁網址」或試算表選單「顯示各頁網址」裡複製（取 /exec 之前那一段即可，不用帶 ?p=desk）。</p>
+</div>
+
+<script>
+/* ★ 建議：把 Apps Script 的網頁應用程式網址（/exec 結尾）填在這裡，同工就完全不用設定 */
+var EXEC_URL = '';
+
+function $(id){ return document.getElementById(id); }
+function LS(k,v){
+  try{
+    if(v===undefined) return localStorage.getItem('v7_'+k);
+    if(v===null) localStorage.removeItem('v7_'+k); else localStorage.setItem('v7_'+k,v);
+  }catch(e){}
+  return null;
+}
+function ok(u){ return /^https:\/\/script\.google\.com\/macros\/s\/[^\/]+\/exec$/.test(String(u||'').trim()); }
+function deskUrl(base){ return base + '?p=desk&openExternalBrowser=1'; }
+
+function jump(base){
+  var u = deskUrl(base);
+  $('setup').style.display = 'none';
+  $('go').style.display = 'block';
+  $('manual').href = u;
+  try{ location.replace(u); }catch(e){ location.href = u; }
+}
+
+(function boot(){
+  /* ① 程式裡寫死的　② 掃描頁（index.html）在這支手機存過的　*/
+  var base = (ok(EXEC_URL) ? EXEC_URL.trim() : '') || (ok(LS('ep')) ? String(LS('ep')).trim() : '');
+  if(base){ jump(base); return; }
+  /* ③ 請使用者貼一次 */
+  $('setup').style.display = 'block';
+  $('save').onclick = function(){
+    var u = $('ep').value.trim();
+    if(!ok(u)){ $('err').textContent = '網址格式不對：要像 https://script.google.com/macros/s/AKfy…/exec'; return; }
+    LS('ep', u);              /* 和掃描頁共用同一個設定，兩邊都只要設定一次 */
+    jump(u);
+  };
+  $('ep').addEventListener('keydown', function(e){ if(e.key==='Enter') $('save').click(); });
+})();
+</script>
+</body>
+</html>
