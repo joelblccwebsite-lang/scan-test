@@ -8,7 +8,7 @@
 <title>報到領餐｜連續掃描</title>
 <!--
   ╔══════════════════════════════════════════════════════════════╗
-  ║ 盧安格特會｜外部連續掃描頁 v7.3.0                              ║
+  ║ 盧安格特會｜外部連續掃描頁 v7.4.0                              ║
   ║ 放在 GitHub Pages，只有程式，不含任何名單。                      ║
   ║ 名單是登入後才從 Apps Script 下載，存在手機瀏覽器裡，登出就清掉。  ║
   ║ 同一層資料夾要放 html5-qrcode.min.js（舊 iPhone 的備援辨識）。    ║
@@ -18,6 +18,10 @@
   ║   ・憑證過期、密碼更換時自動登出（沒送出的紀錄會保留）             ║
   ║   ・登出時連同名單一起清乾淨                                     ║
   ║   ・名牌 QR 只含 5 位數代碼（相機直接掃不會開網頁，要用本頁掃）     ║
+  ║ v7.4：A3 活動日警示                                             ║
+  ║   ・活動日（12/7～12/9）當天如果還是「手動指定」模式，            ║
+  ║     狀態條會出現紅底大字警告，提醒去控制台改回「自動判斷」         ║
+  ║   ・非活動日（演練）不會跳警告，不會吵                            ║
   ╚══════════════════════════════════════════════════════════════╝
 -->
 <style>
@@ -58,6 +62,10 @@ button,input,select{font-family:inherit}
 #dot.busy{background:#E0A100}
 #dot.bad{background:#D62B1B}
 #q.warn{color:#A04800;font-weight:900;font-size:17px}
+/* v7.4：活動日卻是手動模式 → 紅底大字警示（非活動日不顯示） */
+#mWarn{background:#C62828;color:#fff;border-radius:9px;padding:7px 10px;margin-top:6px;
+     font-size:19px;font-weight:900;line-height:1.3;text-align:center}
+#mWarn small{display:block;font-size:15px;font-weight:700;margin-top:2px;color:#FFE8E5}
 
 /* ---------- 鏡頭（常駐，結果只蓋上方一塊） ---------- */
 #camWrap{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:10}
@@ -152,6 +160,7 @@ button,input,select{font-family:inherit}
       <div id="s2"></div>
     </div>
     <div id="b2"></div>
+    <div id="mWarn" class="hide"></div>
     <div id="b3">
       <span id="dot"></span><span id="sTxt">準備中</span>
       <span id="q">未同步 0 筆</span>
@@ -188,7 +197,7 @@ button,input,select{font-family:inherit}
 /* ============================================================
    設定
    ============================================================ */
-var VER = '7.3.0';
+var VER = '7.4.0';
 /* 想把網址寫死在程式裡就填這一行（留白＝第一次用時手動輸入，之後記住） */
 var EXEC_URL = '';
 
@@ -363,6 +372,14 @@ function dayIdx(id){ return (META&&META.days||[]).findIndex(function(x){ return 
 function mealIdx(id){ return (META&&META.meals||[]).findIndex(function(x){ return x.id===id; }); }
 function mealOf(id){ return (META&&META.meals||[]).filter(function(x){ return x.id===id; })[0]||null; }
 function dayOf(id){ return (META&&META.days||[]).filter(function(x){ return x.id===id; })[0]||null; }
+/* v7.4：今天是不是活動日（用伺服器對過時的時間算） */
+function isEventDay(){
+  if(!META || !META.days) return false;
+  var d = new Date(now());
+  var y = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+  for(var i=0;i<META.days.length;i++){ if(META.days[i].date===y) return true; }
+  return false;
+}
 
 /* ============================================================
    掃到一個碼 → 本機立刻判斷（A1：不等伺服器）
@@ -572,6 +589,18 @@ function bumpLocal(d, autoIn){   // 掃到就先把剩餘份數加減，不用�
 function bumpDay(){   // 本機先把報到人數加 1，不用等伺服器
   if(STATS && STATS.day && typeof STATS.day.checked==='number'){ STATS.day.checked++; paintBar(); }
 }
+/* v7.4：活動日 ＋ 手動指定模式 → 紅底大字警示（非活動日演練時不會跳） */
+function paintWarn(){
+  var w = $('mWarn');
+  if(!w) return;
+  if(isEventDay() && CTX && CTX.modeVal){
+    w.innerHTML = '🔧 現在是「手動指定｜'+esc(CTX.manualMode||'')+'」' +
+                  '<small>今天是活動日，不是自動判斷！請到控制台改回「🔄 自動判斷」再開始</small>';
+    show(w, true);
+  } else {
+    show(w, false);
+  }
+}
 function paintBar(){
   var mo = mode();
   var q = QUEUE.length;
@@ -613,6 +642,7 @@ function paintBar(){
     $('b2').innerHTML = '';
     show($('tExtra'), false);
   }
+  paintWarn();
   layout();
 }
 
@@ -919,7 +949,7 @@ $('tMore').onclick = function(){
     '<div class="row" style="display:block">現在模式：<b>'+
       (mo.m==='meal' ? ('領餐｜'+((mealOf(mo.meal)||{}).name||'')) :
        mo.m==='in'   ? ('報到｜'+((dayOf(mo.day)||{}).label||'')) : '今天不記錄')+'</b>'+
-      (CTX&&CTX.manualMode?('<br><span style="color:#A04800;font-weight:700">🔧 控制台手動指定：'+esc(CTX.manualMode)+'</span>'):'')+
+      (CTX&&CTX.manualMode?('<br><span style="color:#A04800;font-weight:700">🔧 控制台手動指定：'+esc(CTX.manualMode)+(isEventDay()?'（今天是活動日，請改回自動判斷）':'')+'</span>'):'')+
       '<br><span style="font-size:15px;color:#444">名單版本 '+((META&&META.rosterVer)||'—')+
       '｜未同步 '+QUEUE.length+' 筆｜'+(CAM.kind==='native'?'內建辨識':CAM.kind==='lib'?'函式庫辨識':'鏡頭未開')+
       (expAt()?('｜登入有效到 '+new Date(expAt()).toLocaleString('zh-TW',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})):'')+'</span></div>'+
@@ -961,6 +991,7 @@ function go(){
   setInterval(function(){ if(QUEUE.length) sync(); }, SYNC_MS);
   setInterval(function(){ if(!QUEUE.length) sync(); }, IDLE_MS);
   setInterval(enforceExpiry, 60000);
+  setInterval(paintWarn, 60000);   // v7.4：跨過午夜進入活動日時，警示也會自己出現
   sync();
 }
 
