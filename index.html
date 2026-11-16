@@ -8,7 +8,7 @@
 <title>報到領餐｜連續掃描</title>
 <!--
   ╔══════════════════════════════════════════════════════════════╗
-  ║ 盧安格特會｜外部連續掃描頁 v7.4.0                              ║
+  ║ 盧安格特會｜外部連續掃描頁 v7.5.1                              ║
   ║ 放在 GitHub Pages，只有程式，不含任何名單。                      ║
   ║ 名單是登入後才從 Apps Script 下載，存在手機瀏覽器裡，登出就清掉。  ║
   ║ 同一層資料夾要放 html5-qrcode.min.js（舊 iPhone 的備援辨識）。    ║
@@ -22,6 +22,9 @@
   ║   ・活動日（12/7～12/9）當天如果還是「手動指定」模式，            ║
   ║     狀態條會出現紅底大字警告，提醒去控制台改回「自動判斷」         ║
   ║   ・非活動日（演練）不會跳警告，不會吵                            ║
+  ║ v7.5：報到模式常駐餐點卡片（要搭配 .gs 的 dm 欄位）                ║
+  ║ v7.5.1：等待掃描只留白字、不要背景；掃描框改成置中的大方黃框        ║
+  ║   （框的位置＝實際讀取範圍，layout／cropOf／startLib 三處一致）    ║
   ╚══════════════════════════════════════════════════════════════╝
 -->
 <style>
@@ -72,7 +75,7 @@ button,input,select{font-family:inherit}
 #vid{width:100%;height:100%;object-fit:cover;display:block}
 #reader{width:100%;height:100%}
 #reader video{width:100%!important;height:100%!important;object-fit:cover!important}
-#box{position:fixed;z-index:12;border:5px solid #FFE600;outline:2px solid rgba(0,0,0,.55);border-radius:14px;pointer-events:none}
+#box{position:fixed;z-index:12;border:5px solid #FFE600;outline:2px solid rgba(0,0,0,.55);border-radius:4px;pointer-events:none}
 
 /* ---------- 工具列 ---------- */
 #tools{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:3px solid #C5CCD6;
@@ -132,7 +135,7 @@ button,input,select{font-family:inherit}
 .mcRow b{font-size:16px;font-weight:900;color:#111}
 /* v7.5：等待掃描時不要背景和框，只留字（白字加深色描邊，疊在鏡頭畫面上也看得清楚） */
 #res.idle{background:transparent;border-color:transparent}
-#res.idle #resT{color:#fff;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
+#res.idle #resT{color:#FFE600;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 #res.idle #resM{color:#fff;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 </style>
 </head>
@@ -175,7 +178,7 @@ button,input,select{font-family:inherit}
       <div id="s2"></div>
     </div>
     <div id="b2"></div>
-        <div id="mCard" class="hide"><div id="mcL"><div id="mcN">—</div><div id="mcLb">剩餘份數</div></div><div id="mcR"></div></div>
+    <div id="mCard" class="hide"><div id="mcL"><div id="mcN">—</div><div id="mcLb">剩餘份數</div></div><div id="mcR"></div></div>
     <div id="mWarn" class="hide"></div>
     <div id="b3">
       <span id="dot"></span><span id="sTxt">準備中</span>
@@ -213,7 +216,7 @@ button,input,select{font-family:inherit}
 /* ============================================================
    設定
    ============================================================ */
-var VER = '7.5.0';
+var VER = '7.5.2';
 /* 想把網址寫死在程式裡就填這一行（留白＝第一次用時手動輸入，之後記住） */
 var EXEC_URL = 'https://script.google.com/macros/s/AKfycbw9OvDJkq71uuowEmXVhT8-y5Tw9yAgCQf_JxZI7N3FpRtierb2GtIM1X92bpZXK3AIyg/exec';
 var SYNC_MS   = 2500;   // 幾毫秒送一次
@@ -666,7 +669,8 @@ $('mCard').addEventListener('click', function(){
   CARDM = ms[(i+1)%ms.length].id; paintBar();
 });
 function paintBar(){
-  try{ paintCard(); }catch(e){ show($('mCard'),false); }  var mo = mode();
+  try{ paintCard(); }catch(e){ show($('mCard'),false); }
+  var mo = mode();
   var q = QUEUE.length;
   var qe = $('q');
   txt(qe, '未同步 '+q+' 筆'+(q?'（別收工）':''));
@@ -715,8 +719,7 @@ function paintBar(){
 function idle(){
   var r = $('res');
   r.className = 'idle';
-  r.innerHTML = '<div id="resT">等待掃描</div>'+
-                '<div id="resM">把名牌的 QR 放進下方黃框裡</div>';
+  r.innerHTML = '<div id="resT">等待掃描</div>';   // v7.5.1：只留這一行字，不再放說明
   show(r,true);
 }
 function paint(level, title, name, msg, sticky){
@@ -736,14 +739,16 @@ function paint(level, title, name, msg, sticky){
 }
 $('res').addEventListener('click', function(){ if(resTimer) clearTimeout(resTimer); idle(); });
 
-/* 版面：狀態條下方到工具列上方＝鏡頭區；結果蓋在鏡頭區最上面 RES_FRAC；掃描框在剩下的鏡頭區中央 */
+/* 版面：狀態條下方到工具列上方＝鏡頭區；結果蓋在鏡頭區最上面 RES_FRAC。
+   v7.5.1：掃描框改成置中在「整個鏡頭區」（不再縮在結果區下面那一小塊），
+   因為報到卡片讓狀態條變高，原本的框會縮成一個小圈圈。框的位置＝實際讀取範圍（cropOf 同步）。 */
 function layout(){
   var top = $('bar').offsetHeight, bot = $('tools').offsetHeight;
   var W = window.innerWidth, H = window.innerHeight - top - bot;
   if(H < 200) H = 200;
   var resH = Math.max(170, Math.round(H*RES_FRAC));
   var vh2 = H - resH;
-  var side = Math.round(Math.min(W, vh2) * 0.72);
+  var side = Math.round(Math.min(W, H) * 0.8);
   L = { T:top, H:H, W:W, resH:resH, vh2:vh2, side:side };
   var cw = $('camWrap');
   cw.style.top = top+'px'; cw.style.bottom = bot+'px';
@@ -752,7 +757,7 @@ function layout(){
   var b = $('box');
   b.style.width = side+'px'; b.style.height = side+'px';
   b.style.left = Math.round((W-side)/2)+'px';
-  b.style.top  = Math.round(top + resH + (vh2-side)/2)+'px';
+  b.style.top  = Math.round(top + (H-side)/2)+'px';
 }
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', function(){ setTimeout(layout,300); });
@@ -854,12 +859,13 @@ function startCam(){
   }).catch(function(e){ camErr(e); });
 }
 
-/* 掃描框在鏡頭畫面裡對應的位置（影片是 cover 填滿鏡頭區，所以要換算） */
+/* 掃描框在鏡頭畫面裡對應的位置（影片是 cover 填滿鏡頭區，所以要換算）
+   v7.5.1：框置中在整個鏡頭區，所以 by＝(H－side)/2 */
 function cropOf(vid){
   var vw=vid.videoWidth, vh=vid.videoHeight; if(!vw||!vh||!L.W) return null;
   var s  = Math.max(L.W/vw, L.H/vh);
   var ox = (vw*s - L.W)/2, oy = (vh*s - L.H)/2;
-  var bx = (L.W - L.side)/2, by = L.resH + (L.vh2 - L.side)/2;
+  var bx = (L.W - L.side)/2, by = (L.H - L.side)/2;
   var sx = Math.max(0, (bx+ox)/s), sy = Math.max(0, (by+oy)/s);
   var ss = Math.min(L.side/s, vw-sx, vh-sy);
   return { x:Math.round(sx), y:Math.round(sy), s:Math.max(40, Math.round(ss)) };
@@ -911,8 +917,8 @@ function startLib(devId){
   CAM.kind='lib'; CAM.h5=h;
   CAM.stop = function(){ try{ h.stop(); }catch(e){} };
   var src = devId ? { deviceId:{ exact:devId } } : { facingMode:'environment' };
-  /* 函式庫的掃描框固定在鏡頭區正中央，所以大小要讓它不被上方結果區蓋住 */
-  var side = Math.max(120, Math.min(Math.round(Math.min(L.W, L.H)*0.55), Math.floor(L.H - 2*L.resH)));
+  /* 函式庫的掃描框固定在鏡頭區正中央（v7.5.1：大小跟置中的方框一致） */
+  var side = Math.max(120, L.side);
   return h.start(src, { fps:LIB_FPS, qrbox:{ width:side, height:side }, disableFlip:true,
                         videoConstraints: Object.assign({ width:{ideal:LIB_RES[0]}, height:{ideal:LIB_RES[1]} }, src) },
     function(t){ hit(t); }, function(){})
