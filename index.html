@@ -8,7 +8,7 @@
 <title>報到領餐｜連續掃描</title>
 <!--
   ╔══════════════════════════════════════════════════════════════╗
-  ║ 盧安格特會｜外部連續掃描頁 v7.5.3                              ║
+  ║ 盧安格特會｜外部連續掃描頁 v7.5.4                              ║
   ║ 放在 GitHub Pages，只有程式，不含任何名單。                      ║
   ║ 名單是登入後才從 Apps Script 下載，存在手機瀏覽器裡，登出就清掉。  ║
   ║ 同一層資料夾要放 html5-qrcode.min.js（舊 iPhone 的備援辨識）。    ║
@@ -139,18 +139,17 @@ button,input,select{font-family:inherit}
 #res.idle #resM{color:#fff;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 /* v7.5.3：掃描結果改成「狀態條右上角小卡」，不再蓋住鏡頭；鏡頭區只留黃字「等待掃描」 */
 #bar{position:fixed}
-#res{position:absolute;z-index:31;left:auto;right:6px;top:calc(4px + env(safe-area-inset-top));
-     width:56%;height:auto;padding:5px 8px;border-width:4px;border-style:solid;border-radius:12px;
+#res{position:absolute;z-index:31;left:44%;right:6px;top:0;
+     width:auto;height:auto;padding:4px 8px;border-width:4px;border-style:solid;border-radius:12px;
      overflow:hidden;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.25)}
 #res>:first-child,#res>:last-child{margin:0}
-#res #resT{font-size:20px;letter-spacing:0;line-height:1.2}
+#res #resT{font-size:19px;letter-spacing:0;line-height:1.2;word-break:break-all}
 #res #resT.long{font-size:17px}
-#res #resN{font-size:26px;margin-top:2px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-#res #resM{font-size:14px;margin-top:2px;line-height:1.3;font-weight:700;
-     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#res #resN{font-size:26px;margin-top:2px;line-height:1.15;word-break:break-all}
+#res #resM{font-size:15px;margin-top:2px;line-height:1.3;font-weight:700;word-break:break-all}
 #res #resX{font-size:12px;margin-top:2px;color:#555}
 #wait{position:fixed;z-index:25;left:0;right:0;text-align:center;pointer-events:none;
-     font-size:clamp(26px,7vw,34px);font-weight:900;color:#FFE600;letter-spacing:1px;
+     font-size:22px;line-height:26px;font-weight:900;color:#FFE600;letter-spacing:1px;
      text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 </style>
 </head>
@@ -232,7 +231,7 @@ button,input,select{font-family:inherit}
 /* ============================================================
    設定
    ============================================================ */
-var VER = '7.5.3';
+var VER = '7.5.4';
 /* 想把網址寫死在程式裡就填這一行（留白＝第一次用時手動輸入，之後記住） */
 var EXEC_URL = 'https://script.google.com/macros/s/AKfycbw9OvDJkq71uuowEmXVhT8-y5Tw9yAgCQf_JxZI7N3FpRtierb2GtIM1X92bpZXK3AIyg/exec';
 var SYNC_MS   = 2500;   // 幾毫秒送一次
@@ -763,17 +762,21 @@ function layout(){
   if(H < 200) H = 200;
   var resH = Math.max(170, Math.round(H*RES_FRAC));
   var vh2 = H - resH;
-  var side = Math.round(Math.min(W, H) * 0.8);
+  var side = Math.round(Math.min(W, H) * 0.62);   // v7.5.4：框縮小，整個框都在鏡頭區裡
   L = { T:top, H:H, W:W, resH:resH, vh2:vh2, side:side };
   var cw = $('camWrap');
   cw.style.top = top+'px'; cw.style.bottom = bot+'px';
-  var wt = $('wait'); if(wt) wt.style.top = (top+8)+'px';
-  var r = $('res'), b1 = $('b1');   // v7.5.3：小卡最多到大數字那一排底下，不壓到下面的餐點卡
-  if(b1) r.style.maxHeight = Math.max(90, b1.offsetTop + b1.offsetHeight - 4) + 'px';
+  var bTop = Math.round(top + (H-side)/2);
+  var wt = $('wait'); if(wt) wt.style.top = Math.max(top+2, bTop-30)+'px';   // 黃字放在框的正上方
+  /* v7.5.4：結果小卡＝標題那一行到餐點卡上緣、右半邊（不蓋「示範用」橫條） */
+  var r = $('res'), t0 = $('bigT').offsetTop, endEl = null;
+  ['mCard','mWarn','b3'].some(function(id){ var e=$(id); if(e && !e.classList.contains('hide') && e.offsetHeight){ endEl=e; return true; } });
+  var t1 = endEl ? endEl.offsetTop - 6 : t0 + 140;
+  r.style.top = t0+'px'; r.style.height = Math.max(90, t1 - t0)+'px';
   var b = $('box');
   b.style.width = side+'px'; b.style.height = side+'px';
   b.style.left = Math.round((W-side)/2)+'px';
-  b.style.top  = Math.round(top + (H-side)/2)+'px';
+  b.style.top  = bTop+'px';
 }
 window.addEventListener('resize', layout);
 window.addEventListener('orientationchange', function(){ setTimeout(layout,300); });
