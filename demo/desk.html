@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>服務台｜載入中…</title>
+<!--
+  示範版 desk.html（放在 scan-test/demo/ 資料夾）
+  作用：開啟時讀取上一層的正式 desk.html，只把 Apps Script 網址換成「示範用」網址，其他完全相同。
+  ★ 若找不到可替換的那一行，會直接顯示錯誤、不會載入頁面（避免誤連到正式系統）。
+  ★ 正式的 desk.html 不會被改到。
+-->
+</head>
+<body style="font:18px/1.6 system-ui,-apple-system,'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;padding:48px 16px;text-align:center;background:#F4F6F8;color:#111">
+<p id="m">🧪 載入示範版…</p>
+<script>
+var DEMO_URL = 'https://script.google.com/macros/s/AKfycbxf0OWNE0fs4MpQexnidFRb-kGukL0QgRtYW9fMlVssDjT1PfEeTaK6D248Vdq6rnAo/exec';
+var SRC = '../desk.html';
+function fail(s){ document.getElementById('m').innerHTML = '❌ 示範版載入失敗<br><small style="color:#B3261E">' + s + '</small>'; }
+fetch(SRC, { cache: 'no-store' }).then(function(r){
+  if(!r.ok) throw new Error('讀不到 ' + SRC + '（HTTP ' + r.status + '）');
+  return r.text();
+}).then(function(t){
+  var re = /var EXEC_URL = '[^']*';/;
+  if(!re.test(t)) throw new Error('找不到 EXEC_URL 那一行，為了安全不載入');
+  var h = t.replace(re, "var EXEC_URL = '" + DEMO_URL + "';");
+  h = h.replace('src="html5-qrcode.min.js"', 'src="../html5-qrcode.min.js"');
+  h = h.replace(/<title>[^<]*<\/title>/, '<title>【示範】服務台</title>');
+  if(h.indexOf(DEMO_URL) < 0) throw new Error('網址沒有換成功，為了安全不載入');
+  document.open(); document.write(h); document.close();
+}).catch(function(e){ fail(String((e && e.message) || e)); });
+</script>
+</body>
+</html>
