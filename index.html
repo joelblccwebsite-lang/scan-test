@@ -119,6 +119,17 @@ button,input,select{font-family:inherit}
 #alert div{font-size:19px;margin-top:5px}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:45;background:#1F2937;
      color:#fff;font-size:17px;font-weight:700;padding:11px 16px;border-radius:20px;max-width:90%;text-align:center}
+/* v7.5：報到模式常駐餐點卡片 */
+#mCard{display:flex;align-items:center;gap:10px;margin-top:6px;border:2px solid #C5CCD6;border-radius:12px;padding:6px 10px;background:#fff}
+#mcL{text-align:center;padding-right:10px;border-right:2px solid #E1E5EB;min-width:84px}
+#mcN{font-size:52px;font-weight:900;line-height:1;color:#0A5C2E}
+#mcN.low{color:#C62828}
+#mcLb{font-size:14px;color:#444;margin-top:2px;white-space:nowrap}
+#mcR{flex:1;min-width:0}
+#mcT{font-size:17px;font-weight:800;color:#111;line-height:1.3}
+#mcT small{font-size:14px;font-weight:600;color:#444;margin-left:5px}
+.mcRow{display:flex;justify-content:space-between;font-size:15px;line-height:1.35;color:#222}
+.mcRow b{font-size:16px;font-weight:900;color:#111}
 </style>
 </head>
 <body>
@@ -160,6 +171,7 @@ button,input,select{font-family:inherit}
       <div id="s2"></div>
     </div>
     <div id="b2"></div>
+        <div id="mCard" class="hide"><div id="mcL"><div id="mcN">—</div><div id="mcLb">剩餘份數</div></div><div id="mcR"></div></div>
     <div id="mWarn" class="hide"></div>
     <div id="b3">
       <span id="dot"></span><span id="sTxt">準備中</span>
@@ -197,7 +209,7 @@ button,input,select{font-family:inherit}
 /* ============================================================
    設定
    ============================================================ */
-var VER = '7.4.0';
+var VER = '7.5.0';
 /* 想把網址寫死在程式裡就填這一行（留白＝第一次用時手動輸入，之後記住） */
 var EXEC_URL = 'https://script.google.com/macros/s/AKfycbw9OvDJkq71uuowEmXVhT8-y5Tw9yAgCQf_JxZI7N3FpRtierb2GtIM1X92bpZXK3AIyg/exec';
 var SYNC_MS   = 2500;   // 幾毫秒送一次
@@ -600,8 +612,57 @@ function paintWarn(){
     show(w, false);
   }
 }
+/* v7.5：報到模式常駐顯示當天餐點。報名、已領、報到未領由手機名單即時算；訂購、加發由伺服器給 */
+var CARDM = '';
+function pickMeal(day){
+  var ms = (META && META.meals || []).filter(function(m){ return m.day===day; });
+  if(!ms.length) return null;
+  if(CARDM){ var f = ms.filter(function(m){ return m.id===CARDM; })[0]; if(f) return f; }
+  var dd = dayOf(day), d = new Date(now());
+  var y = d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+  if(dd && dd.date===y){
+    var mins = d.getHours()*60+d.getMinutes(), g = Number(META.grace||0);
+    for(var i=0;i<ms.length;i++){ if(mins <= hm(ms[i].to)+g) return ms[i]; }
+    return ms[ms.length-1];
+  }
+  return ms[0];
+}
+function mealLive(m){
+  var mb = 1<<mealIdx(m.id), db = 1<<dayIdx(m.day), reg=0, got=0, wait=0;
+  for(var c in ROSTER){
+    var p = ROSTER[c];
+    if(!(p.o & mb)) continue;
+    if(!p.z) reg++;
+    if(p.g & mb) got++; else if(p.i & db) wait++;
+  }
+  return { reg:reg, got:got, wait:wait };
+}
+function mcRow(l, v){ return '<div class="mcRow"><span>'+l+'</span><b>'+num(v)+'</b></div>'; }
+function paintCard(){
+  var box = $('mCard'), mo = mode(), m = null, e = null;
+  if(mo.m==='in' && META && STATS && STATS.dm){
+    m = pickMeal(mo.day);
+    if(m) e = STATS.dm.filter(function(x){ return x.id===m.id; })[0];
+  }
+  if(!m || !e){ show(box,false); return; }
+  var s = mealLive(m), left = e.ordered - s.got - e.extra;
+  var multi = (META.meals||[]).filter(function(x){ return x.day===mo.day; }).length > 1;
+  txt($('mcN'), left);
+  $('mcN').className = (left<=10)?'low':'';
+  $('mcR').innerHTML = '<div id="mcT">'+esc(m.name)+'<small>'+esc(m.food)+'</small>'+(multi?'<small>｜點一下換餐</small>':'')+'</div>'+
+    mcRow('報名份數', s.reg)+mcRow('訂購份數（含加訂）', e.ordered)+mcRow('已領（有訂餐）', s.got)+
+    mcRow('現場加發', e.extra)+mcRow('已報到、還沒領', s.wait);
+  show(box,true);
+}
+$('mCard').addEventListener('click', function(){
+  var mo = mode(); if(mo.m!=='in') return;
+  var ms = (META&&META.meals||[]).filter(function(x){ return x.day===mo.day; });
+  if(ms.length<2) return;
+  var cur = pickMeal(mo.day), i = ms.findIndex(function(x){ return cur && x.id===cur.id; });
+  CARDM = ms[(i+1)%ms.length].id; paintBar();
+});
 function paintBar(){
-  var mo = mode();
+  try{ paintCard(); }catch(e){ show($('mCard'),false); }  var mo = mode();
   var q = QUEUE.length;
   var qe = $('q');
   txt(qe, '未同步 '+q+' 筆'+(q?'（別收工）':''));
