@@ -8,7 +8,7 @@
 <title>報到領餐｜連續掃描</title>
 <!--
   ╔══════════════════════════════════════════════════════════════╗
-  ║ 盧安格特會｜外部連續掃描頁 v7.5.1                              ║
+  ║ 盧安格特會｜外部連續掃描頁 v7.5.3                              ║
   ║ 放在 GitHub Pages，只有程式，不含任何名單。                      ║
   ║ 名單是登入後才從 Apps Script 下載，存在手機瀏覽器裡，登出就清掉。  ║
   ║ 同一層資料夾要放 html5-qrcode.min.js（舊 iPhone 的備援辨識）。    ║
@@ -137,6 +137,21 @@ button,input,select{font-family:inherit}
 #res.idle{background:transparent;border-color:transparent}
 #res.idle #resT{color:#FFE600;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 #res.idle #resM{color:#fff;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
+/* v7.5.3：掃描結果改成「狀態條右上角小卡」，不再蓋住鏡頭；鏡頭區只留黃字「等待掃描」 */
+#bar{position:fixed}
+#res{position:absolute;z-index:31;left:auto;right:6px;top:calc(4px + env(safe-area-inset-top));
+     width:56%;height:auto;padding:5px 8px;border-width:4px;border-style:solid;border-radius:12px;
+     overflow:hidden;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+#res>:first-child,#res>:last-child{margin:0}
+#res #resT{font-size:20px;letter-spacing:0;line-height:1.2}
+#res #resT.long{font-size:17px}
+#res #resN{font-size:26px;margin-top:2px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#res #resM{font-size:14px;margin-top:2px;line-height:1.3;font-weight:700;
+     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#res #resX{font-size:12px;margin-top:2px;color:#555}
+#wait{position:fixed;z-index:25;left:0;right:0;text-align:center;pointer-events:none;
+     font-size:clamp(26px,7vw,34px);font-weight:900;color:#FFE600;letter-spacing:1px;
+     text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 </style>
 </head>
 <body>
@@ -185,6 +200,7 @@ button,input,select{font-family:inherit}
       <span id="q">未同步 0 筆</span>
       <span style="margin-left:auto">v<span class="ver"></span>｜<span id="devN"></span></span>
     </div>
+    <div id="res" class="hide"></div>
   </div>
 
   <div id="camWrap">
@@ -193,7 +209,7 @@ button,input,select{font-family:inherit}
   </div>
   <div id="box" class="hide"></div>
 
-  <div id="res" class="idle"></div>
+  <div id="wait">等待掃描</div>
 
   <div id="tools">
     <button id="tTorch"><i>🔅</i>手電筒</button>
@@ -216,7 +232,7 @@ button,input,select{font-family:inherit}
 /* ============================================================
    設定
    ============================================================ */
-var VER = '7.5.2';
+var VER = '7.5.3';
 /* 想把網址寫死在程式裡就填這一行（留白＝第一次用時手動輸入，之後記住） */
 var EXEC_URL = 'https://script.google.com/macros/s/AKfycbw9OvDJkq71uuowEmXVhT8-y5Tw9yAgCQf_JxZI7N3FpRtierb2GtIM1X92bpZXK3AIyg/exec';
 var SYNC_MS   = 2500;   // 幾毫秒送一次
@@ -718,18 +734,17 @@ function paintBar(){
    黃／紅會一直留著，直到掃下一位（自動換掉）或點一下。 */
 function idle(){
   var r = $('res');
-  r.className = 'idle';
-  r.innerHTML = '<div id="resT">等待掃描</div>';   // v7.5.1：只留這一行字，不再放說明
-  show(r,true);
+  r.className = 'hide';   // v7.5.3：沒結果時收起右上角小卡（鏡頭區一直顯示黃字「等待掃描」）
+  r.innerHTML = '';
 }
 function paint(level, title, name, msg, sticky){
   var r = $('res');
   var ic = level==='ok' ? '✔ ' : level==='warn' ? '⚠ ' : level==='err' ? '✖ ' : 'ℹ ';   // v7.2：不只靠顏色分辨
   r.className = level;
-  r.innerHTML = '<div id="resT"'+(title.length>7?' class="long"':'')+'>'+ic+esc(title)+'</div>'+
+  r.innerHTML = '<div id="resT"'+(title.length>6?' class="long"':'')+'>'+ic+esc(title)+'</div>'+
     (name?'<div id="resN">'+esc(name)+'</div>':'')+
     (msg?'<div id="resM">'+esc(msg)+'</div>':'')+
-    '<div id="resX">'+(sticky?'掃下一位會自動換掉｜或點一下清除':'')+'</div>';
+    (sticky?'<div id="resX">點一下清除</div>':'');
   show(r,true);
   if(resTimer) clearTimeout(resTimer);
   if(!sticky) resTimer = setTimeout(idle, OK_MS);
@@ -752,8 +767,9 @@ function layout(){
   L = { T:top, H:H, W:W, resH:resH, vh2:vh2, side:side };
   var cw = $('camWrap');
   cw.style.top = top+'px'; cw.style.bottom = bot+'px';
-  var r = $('res');
-  r.style.top = top+'px'; r.style.height = resH+'px';
+  var wt = $('wait'); if(wt) wt.style.top = (top+8)+'px';
+  var r = $('res'), b1 = $('b1');   // v7.5.3：小卡最多到大數字那一排底下，不壓到下面的餐點卡
+  if(b1) r.style.maxHeight = Math.max(90, b1.offsetTop + b1.offsetHeight - 4) + 'px';
   var b = $('box');
   b.style.width = side+'px'; b.style.height = side+'px';
   b.style.left = Math.round((W-side)/2)+'px';
