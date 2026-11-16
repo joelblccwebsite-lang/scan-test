@@ -130,6 +130,10 @@ button,input,select{font-family:inherit}
 #mcT small{font-size:14px;font-weight:600;color:#444;margin-left:5px}
 .mcRow{display:flex;justify-content:space-between;font-size:15px;line-height:1.35;color:#222}
 .mcRow b{font-size:16px;font-weight:900;color:#111}
+/* v7.5：等待掃描時不要背景和框，只留字（白字加深色描邊，疊在鏡頭畫面上也看得清楚） */
+#res.idle{background:transparent;border-color:transparent}
+#res.idle #resT{color:#fff;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
+#res.idle #resM{color:#fff;text-shadow:0 0 4px #000,0 2px 6px #000,0 0 10px #000}
 </style>
 </head>
 <body>
